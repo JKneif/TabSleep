@@ -64,15 +64,6 @@ async function init() {
   $("#alltime-eur").textContent = fmt(state.allTime.eur, 2);
   $("#alltime-wh").textContent = fmtWh(state.allTime.wh);
 
-  // Demo data indicator
-  if (state.isDemoData) {
-    $("#demo-banner").hidden = false;
-    $("#demo-btn").hidden = true;
-  } else {
-    $("#demo-banner").hidden = true;
-    $("#demo-btn").hidden = false;
-  }
-
   // Relatable comparison in EUR
   const eur = state.allTime.eur;
   if (eur > 0) {
@@ -160,40 +151,5 @@ document.addEventListener("DOMContentLoaded", () => {
   init();
   const btn = $("#sleep-all-btn");
   if (btn) btn.addEventListener("click", onSleepAll);
-  const demoBtn = $("#demo-btn");
-  if (demoBtn) demoBtn.addEventListener("click", onSeedDemo);
-  const resetBtn = $("#reset-btn");
-  if (resetBtn) resetBtn.addEventListener("click", onReset);
 });
-
-async function onSeedDemo() {
-  const btn = $("#demo-btn");
-  btn.disabled = true;
-  const original = btn.textContent;
-  btn.textContent = "Seeding…";
-  try {
-    const res = await chrome.runtime.sendMessage({ type: "SEED_DEMO" });
-    if (res && res.ok) {
-      btn.textContent = `Done — ${res.discards.toLocaleString("en-US")} discards`;
-      setTimeout(init, 600);
-    } else {
-      btn.textContent = "Error";
-      setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1500);
-    }
-  } catch (e) {
-    console.warn("seed demo failed", e);
-    btn.textContent = "Error";
-    setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1500);
-  }
-}
-
-async function onReset() {
-  if (!confirm("Wipe all TabSleep data (discard log + daily totals)?")) return;
-  try {
-    await chrome.runtime.sendMessage({ type: "RESET_DATA" });
-    init();
-  } catch (e) {
-    console.warn("reset failed", e);
-  }
-}
 
