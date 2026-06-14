@@ -15,7 +15,7 @@ const DAILY_TOTAL_DAYS = 30;
 let lastPageSignals = new Map();
 // Tabs we discarded ourselves, and when — to compute accurate sleep duration
 // and to know which tabs in storage are "ours".
-let ourDiscards = new Map(); // tabId -> {ts, url, score, reasons, gCO2e, wh}
+let ourDiscards = new Map(); // tabId -> {ts, url, score, reasons, eur, wh}
 
 chrome.runtime.onInstalled.addListener(async () => {
   await ensureAlarm();
@@ -60,7 +60,7 @@ async function tick() {
   const tabs = await chrome.tabs.query({});
   const totalTabs = tabs.length;
   const now = Date.now();
-  const dailyDelta = { wh: 0, gCO2e: 0 };
+  const dailyDelta = { wh: 0, eur: 0 };
 
   // Step 1: collect page signals from content scripts.
   // We send a request; content scripts respond asynchronously. To keep
@@ -104,19 +104,19 @@ async function tick() {
         score: result.score,
         reasons: result.reasons,
         wh: est.wh,
-        gCO2e: est.gCO2e,
+        eur: est.eur,
         restored: false,
       };
       ourDiscards.set(tab.id, event);
       dailyDelta.wh += est.wh;
-      dailyDelta.gCO2e += est.gCO2e;
+      dailyDelta.eur += est.eur;
       await appendDiscardEvent(event);
     } catch (e) {
       console.warn("[tabsleep] discard failed for tab", tab.id, e);
     }
   }
 
-  if (dailyDelta.wh > 0 || dailyDelta.gCO2e > 0) {
+  if (dailyDelta.wh > 0 || dailyDelta.eur > 0) {
     await addToDailyTotals(dailyDelta);
   }
 
@@ -131,12 +131,12 @@ async function appendDiscardEvent(event) {
   await chrome.storage.local.set({ discardLog });
 }
 
-async function addToDailyTotals({ wh, gCO2e }) {
+async function addToDailyTotals({ wh, eur }) {
   const today = ymd(new Date());
   const { dailyTotals = {} } = await chrome.storage.local.get("dailyTotals");
-  const cur = dailyTotals[today] || { wh: 0, gCO2e: 0 };
+  const cur = dailyTotals[today] || { wh: 0, eur: 0 };
   cur.wh += wh;
-  cur.gCO2e += gCO2e;
+  cur.eur += eur;
   dailyTotals[today] = cur;
   // Trim to last N days
   const keys = Object.keys(dailyTotals).sort();
@@ -194,8 +194,71 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === "SLEEP_ALL") {
+    sleepAll()
+      .then((res) => sendResponse(res))
+      .catch((e) => sendResponse({ ok: false, error: String(e) }));
+    return true;
+  }
+
   return false;
 });
+
+/**
+ * Discard every tab that is eligible (not pinned, not active, not
+ * already discarded, not in the never-discard URL set). Runs the
+ * full accounting path: per-discard Wh + EUR, daily totals, log.
+ * Bypasses the score-based threshold — this is the user's manual
+ * "send everything to sleep" command.
+ */
+async function sleepAll() {
+  const tabs = await chrome.tabs.query({});
+  const now = Date.now();
+  const dailyDelta = { wh: 0, eur: 0 };
+  let discarded = 0;
+  let skipped = 0;
+  const skippedReasons = [];
+
+  for (const tab of tabs) {
+    if (tab.id === undefined) { skipped++; continue; }
+    if (tab.active) { skipped++; skippedReasons.push("active"); continue; }
+    if (tab.pinned) { skipped++; skippedReasons.push("pinned"); continue; }
+    if (tab.discarded) { skipped++; continue; }
+    if (globalThis.__th.isNeverDiscardable(tab.url)) {
+      skipped++; skippedReasons.push("never_discard_url");
+      continue;
+    }
+
+    try {
+      await chrome.tabs.discard(tab.id);
+      const est = globalThis.__ti.estimatePerDiscard();
+      const event = {
+        ts: now,
+        tabId: tab.id,
+        url: tab.url || "",
+        score: 999, // manual override, not score-driven
+        reasons: ["manual_sleep_all"],
+        wh: est.wh,
+        eur: est.eur,
+        restored: false,
+      };
+      ourDiscards.set(tab.id, event);
+      dailyDelta.wh += est.wh;
+      dailyDelta.eur += est.eur;
+      await appendDiscardEvent(event);
+      discarded += 1;
+    } catch (e) {
+      console.warn("[tabsleep] sleep-all: discard failed for tab", tab.id, e);
+      skipped++;
+    }
+  }
+
+  if (dailyDelta.wh > 0 || dailyDelta.eur > 0) {
+    await addToDailyTotals(dailyDelta);
+  }
+
+  return { ok: true, discarded, skipped };
+}
 
 async function getState() {
   const tabs = await chrome.tabs.query({ discarded: true });
@@ -204,21 +267,26 @@ async function getState() {
     "dailyTotals",
   ]);
   const today = ymd(new Date());
-  const todayTotals = dailyTotals[today] || { wh: 0, gCO2e: 0 };
+  const todayTotals = dailyTotals[today] || { wh: 0, eur: 0 };
   // Last 7 days
   const last7 = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const k = ymd(d);
-    const t = dailyTotals[k] || { wh: 0, gCO2e: 0 };
-    last7.push({ day: k, wh: t.wh, gCO2e: t.gCO2e });
+    const t = dailyTotals[k] || { wh: 0, eur: 0 };
+    last7.push({ day: k, wh: t.wh, eur: t.eur });
   }
+  const last7Eur = last7.reduce((s, x) => s + x.eur, 0);
   const last7Wh = last7.reduce((s, x) => s + x.wh, 0);
   return {
     ok: true,
     today: { ...todayTotals, day: today },
-    last7: { wh: last7Wh, gCO2e: last7.reduce((s, x) => s + x.gCO2e, 0), days: last7.reverse() },
+    last7: {
+      wh: last7Wh,
+      eur: last7Eur,
+      days: last7.reverse(),
+    },
     sleepingTabs: tabs
       .filter((t) => t.id !== undefined)
       .map((t) => ({
@@ -230,7 +298,7 @@ async function getState() {
       })),
     constants: {
       wattPerDiscardedTab: globalThis.__ti.WATT_PER_DISCARDED_TAB,
-      gCO2ePerKwh: globalThis.__ti.G_CO2E_PER_KWH,
+      eurPerKwh: globalThis.__ti.EUR_PER_KWH,
       assumedSleepHours: globalThis.__ti.ASSUMED_SLEEP_HOURS,
     },
   };

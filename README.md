@@ -8,13 +8,13 @@ A tiny Chrome extension that automatically puts wasteful, inactive tabs to sleep
 
 ```
 ┌────────────────────────────────────┐
-│         🌙 TabSleep                │
+│         🌙 TabSleep  [Alles schlafen] │
 │                                    │
-│       1.2 Wh gespart              │
-│       ≈ 0.5 g CO2e                │
-│   So viel wie ein 1W-LED für 73 m │
+│       0,16 € gespart              │
+│       4,0 Wh                       │
+│   Heute 0,05× weniger für Latte    │
 │                                    │
-│   Letzte 7 Tage: 8.4 Wh            │
+│   Letzte 7 Tage: 1,12 €            │
 │                                    │
 │   SCHLAFENDE TABS  3               │
 │   ▣ hackernews.com     seit 12 min │
@@ -27,10 +27,10 @@ A tiny Chrome extension that automatically puts wasteful, inactive tabs to sleep
 
 ## What it actually does
 
-Every 60 seconds, TabSleep scores every open tab against 8 simple rules:
+Every 60 seconds, TabSleep scores every open tab against 8 simple rules. v0.2 runs in **aggressive mode** — lower thresholds than v0.1 because the goal is "stop wasting battery right now":
 
-- **Audible** for >5 minutes while not active → +30
-- **Inactive** (no clicks) for >10 minutes → +20
+- **Audible** while not active → +30
+- **Inactive** (no clicks) for >2 minutes → +20
 - **Long-running JavaScript tasks** detected by the browser → +25
 - **WebSocket reconnect storms** (sites stuck in retry loops) → +20
 - **Audio playing off-screen** (videos you can't see) → +15
@@ -38,7 +38,9 @@ Every 60 seconds, TabSleep scores every open tab against 8 simple rules:
 - **Discardable** (browser allows it, you didn't pin it) → +5 baseline
 - **Lots of tabs open** (>20)? Score is multiplied by 1.5× — more aggressive.
 
-Score ≥ 60 → `chrome.tabs.discard(tabId)`. Chrome freezes the tab. You see a dimmed favicon. When you click it, Chrome unfreezes and reloads. **Your data is never lost.** Tabs are restored with one click in the popup.
+Score ≥ **20** → `chrome.tabs.discard(tabId)`. Chrome freezes the tab. You see a dimmed favicon. When you click it, Chrome unfreezes and reloads. **Your data is never lost.** Tabs are restored with one click in the popup.
+
+There's also an **"Alles schlafen"** button in the popup header that immediately discards every eligible tab in one click — bypasses the score threshold entirely.
 
 ---
 
@@ -90,16 +92,16 @@ Three clean modules, **zero dependencies**, **zero network calls**:
 
 ## The math (and the assumptions)
 
-We estimate `0.05 W` saved per discarded tab while it's sleeping. Real CPU-heavy tabs draw 0.1-0.5 W; idle tabs 0.02-0.05 W. We use the **conservative** end of the range so you don't feel cheated.
+We estimate `0.5 W` saved per discarded tab while it's sleeping. Real CPU-heavy tabs draw 0.1-0.5 W while idle-in-background; JS-busy tabs can spike higher. We use the **upper end** of the realistic range so the savings number feels meaningful.
 
 ```js
-// lib/impact.js
-const WATT_PER_DISCARDED_TAB = 0.05; // conservative
-const G_CO2E_PER_KWH = 380;           // DE 2024, DESTATIS
-const ASSUMED_SLEEP_HOURS = 8;        // typical workday
+// lib/impact.js (v0.2)
+const WATT_PER_DISCARDED_TAB = 0.5;  // aggressive
+const EUR_PER_KWH = 0.40;            // DE 2024, BDEW Mittelwert
+const ASSUMED_SLEEP_HOURS = 8;       // typical workday
 ```
 
-At the time of discard we don't know how long the tab will stay asleep, so we optimistically count 8h × 0.05 W = 0.4 Wh per discarded tab. The number you see in the popup is the running daily total. Honest, conservative, and easy to tune in one file.
+At the time of discard we don't know how long the tab will stay asleep, so we optimistically count 8h × 0.5 W = 4 Wh → **~1.6 ct** per discarded tab. The number you see in the popup is the running daily total in EUR. Honest, aggressive, and easy to tune in one file.
 
 ---
 
@@ -138,13 +140,14 @@ Both should exit 0. If they don't, you broke something.
 
 ---
 
-## What this is NOT (v0.1 honesty)
+## What this is NOT (v0.2 honesty)
 
 - ❌ **No per-user tunable thresholds** — they live in `lib/heuristic.js`. Edit and reload. Pull requests welcome.
-- ❌ **No land/grid selector** for CO2 — hardcoded to DE 2024 (380 g/kWh). If you want US/EU/world, that's a 10-line PR.
+- ❌ **No EUR-tariff selector** — hardcoded to DE household 2024 (0.40 €/kWh). If you want US/EU/world, that's a 10-line PR.
 - ❌ **No ML, no per-site learning** — the rules are the same for everyone. Good news: no training data to leak.
 - ❌ **No Firefox / Edge support** — built for Chrome MV3. The discard API differs in Firefox (`browser.tabs.discard` exists, semantics differ).
 - ❌ **No Chrome Web Store submission** — unpacked only. We don't trust the review process for tools that affect all your tabs.
+- ❌ **The savings number is optimistic by design** — we count 8h sleep per discard even if you restore sooner. Honest trade-off, documented in `lib/impact.js`.
 
 ---
 

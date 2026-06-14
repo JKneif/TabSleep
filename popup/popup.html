@@ -8,23 +8,24 @@
 <body>
   <header>
     <h1>🌙 TabSleep</h1>
+    <button id="sleep-all-btn" class="sleep-all">Alles schlafen</button>
   </header>
 
   <main>
     <section class="big" aria-live="polite">
       <div class="big-number">
-        <span id="today-wh">—</span>
-        <span class="unit">Wh gespart</span>
+        <span id="today-eur">—</span>
+        <span class="unit">gespart</span>
       </div>
       <div class="big-sub">
-        ≈ <span id="today-co2">—</span> g CO2e
+        <span id="today-wh">—</span> Wh
       </div>
       <div class="big-relate" id="relate"></div>
     </section>
 
     <section class="last7">
       <span class="last7-label">Letzte 7 Tage</span>
-      <span class="last7-value" id="last7-wh">—</span>
+      <span class="last7-value" id="last7-eur">—</span>
     </section>
 
     <section class="sleeping">

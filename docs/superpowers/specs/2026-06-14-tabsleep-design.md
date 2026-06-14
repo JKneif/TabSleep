@@ -16,7 +16,9 @@ Runs 100% on-device. No telemetry. No servers. No account.
 - **Engine:** Chrome built-in `chrome.tabs.discard()`. Available since Chrome 54.
 - **Interval:** 60s alarm-based service-worker tick.
 - **Whitelist:** First iteration has no UI; users right-click a tab → "Don't discard" (Chrome built-in) to opt out. We respect `tab.autoDiscardable === false`.
-- **Impact model:** 0.05 W saved per discarded tab (conservative; documented in `lib/impact.js`). CO2 conversion: 380 g CO2e/kWh (Germany 2024, DESTATIS). Hardcoded with comment for v0.1.
+- **Impact model (v0.2 — money):** `0.5 W` saved per discarded tab (upper end of realistic range, aggressive per user preference). Money conversion: `0.40 EUR/kWh` (BDEW German household average 2024, all-in). Per-discard: `~1.6 ct` (8h assumption). Hardcoded with comment for v0.2.
+- **Mode (v0.2 — aggressive):** `DISCARD_THRESHOLD=20` (was 60), `INACTIVE_MINUTES=2` (was 10), `AUDIBLE_MINUTES=0` (was 5), `LONG_TASKS_THRESHOLD=2` (was 5), `WS_RECONNECTS_THRESHOLD=1` (was 3), `LAYOUT_SHIFTS_THRESHOLD=4` (was 10). Tabs that haven't been touched in 2 minutes and are not active become candidates.
+- **Sleep-All button (v0.2):** Popup header has a "Alles schlafen" button that immediately discards every eligible tab (skips pinned, active, never-discard URLs). Bypasses the score threshold — manual override.
 - **No ML**, no MutationObserver in content script — Performance-Observer is enough.
 - **No notifications** — only the popup shows what happened. Less noise, more trust.
 - **Storage:** `chrome.storage.local`. Keeps last 200 discard events + daily totals. No remote sync.

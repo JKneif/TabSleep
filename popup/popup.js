@@ -3,11 +3,18 @@
 
 const $ = (sel) => document.querySelector(sel);
 
-function fmt(n, digits = 1) {
+function fmt(n, digits = 2) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  if (n === 0) return "0,00 €";
+  if (n < 0.01) return n.toExponential(1) + " €";
+  return n.toFixed(digits).replace(".", ",") + " €";
+}
+
+function fmtWh(n) {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   if (n === 0) return "0";
   if (n < 0.01) return n.toExponential(1);
-  return n.toFixed(digits);
+  return n.toFixed(1);
 }
 
 function fmtMinutes(min) {
@@ -41,32 +48,34 @@ async function init() {
   try {
     state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
   } catch (e) {
+    $("#today-eur").textContent = "—";
     $("#today-wh").textContent = "—";
-    $("#today-co2").textContent = "—";
     $("#relate").textContent = "Service worker nicht erreichbar.";
     return;
   }
   if (!state || !state.ok) {
+    $("#today-eur").textContent = "—";
     $("#today-wh").textContent = "—";
-    $("#today-co2").textContent = "—";
     $("#relate").textContent = (state && state.error) || "Kein State.";
     return;
   }
 
-  // Today
-  $("#today-wh").textContent = fmt(state.today.wh, 2);
-  $("#today-co2").textContent = fmt(state.today.gCO2e, 2);
+  // Today: EUR is the big number, Wh is the subline
+  $("#today-eur").textContent = fmt(state.today.eur, 2);
+  $("#today-wh").textContent = fmtWh(state.today.wh);
 
-  // Relatable (computed locally from wh to avoid coupling popup to impact lib)
-  const wh = state.today.wh;
-  // 1W LED for X minutes = X/60 Wh
-  const minutes = wh > 0 ? Math.max(1, Math.round(wh * 60)) : 0;
-  $("#relate").textContent = wh > 0
-    ? `So viel wie ein 1W-LED für ${minutes} Minuten`
-    : "Noch keine Ersparnis heute.";
+  // Relatable — based on EUR now
+  const eur = state.today.eur;
+  if (eur > 0) {
+    // ~one coffee per day at €3.50 is a relatable goal.
+    const coffees = (eur / 3.5).toFixed(2).replace(".", ",");
+    $("#relate").textContent = `Heute ${coffees}× weniger für Latte ausgegeben`;
+  } else {
+    $("#relate").textContent = "Noch keine Ersparnis heute.";
+  }
 
   // Last 7
-  $("#last7-wh").textContent = `${fmt(state.last7.wh, 1)} Wh`;
+  $("#last7-eur").textContent = fmt(state.last7.eur, 2);
 
   // Sleeping list
   const list = $("#sleeping-list");
@@ -116,4 +125,32 @@ async function init() {
   $("#sleeping-count").textContent = state.sleepingTabs ? state.sleepingTabs.length : 0;
 }
 
-document.addEventListener("DOMContentLoaded", init);
+// === Sleep-All button ===
+
+async function onSleepAll() {
+  const btn = $("#sleep-all-btn");
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = "Schicke schlafen…";
+  try {
+    const res = await chrome.runtime.sendMessage({ type: "SLEEP_ALL" });
+    if (res && res.ok) {
+      btn.textContent = `${res.discarded} geschickt`;
+      setTimeout(() => { btn.textContent = originalText; init(); }, 1200);
+    } else {
+      btn.textContent = "Fehler";
+      setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1500);
+    }
+  } catch (e) {
+    console.warn("sleep-all failed", e);
+    btn.textContent = "Fehler";
+    setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1500);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  init();
+  const btn = $("#sleep-all-btn");
+  if (btn) btn.addEventListener("click", onSleepAll);
+});
+
