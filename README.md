@@ -25,7 +25,7 @@ A tiny Chrome extension that automatically puts wasteful, inactive tabs to sleep
 
 ---
 
-## ⚡ What it actually does
+## What it actually does
 
 Every 60 seconds, TabSleep scores every open tab against 8 simple rules:
 
@@ -42,7 +42,7 @@ Score ≥ 60 → `chrome.tabs.discard(tabId)`. Chrome freezes the tab. You see a
 
 ---
 
-## 🛡️ What it doesn't touch
+## What it doesn't touch
 
 - **Pinned tabs** — ever.
 - **The active tab** — ever.
@@ -54,7 +54,7 @@ It also runs **100% locally**. No server, no telemetry, no analytics, no "anonym
 
 ---
 
-## 📦 Install in 30 seconds
+## Install in 30 seconds
 
 1. `chrome://extensions/` → toggle **Developer mode** (top right).
 2. **Load unpacked** → select this `tabsleep/` folder.
@@ -64,7 +64,7 @@ That's it. No accounts, no flags, no Chrome version restrictions (works on Chrom
 
 ---
 
-## 🛠️ How it works (for the curious)
+## How it works (for the curious)
 
 ```
 ┌──────────────────┐  sendMessage   ┌──────────────────┐
@@ -88,7 +88,7 @@ Three clean modules, **zero dependencies**, **zero network calls**:
 
 ---
 
-## 📊 The math (and the assumptions)
+## The math (and the assumptions)
 
 We estimate `0.05 W` saved per discarded tab while it's sleeping. Real CPU-heavy tabs draw 0.1-0.5 W; idle tabs 0.02-0.05 W. We use the **conservative** end of the range so you don't feel cheated.
 
@@ -103,7 +103,7 @@ At the time of discard we don't know how long the tab will stay asleep, so we op
 
 ---
 
-## 🌍 Why this matters (the actual numbers)
+## Why this matters (the actual numbers)
 
 - A modern laptop draws ~15-25 W at idle. A handful of open but unused tabs can easily cost 0.5-2 W of that.
 - For a knowledge worker with 20+ tabs and an 8h workday, that's ~1-2 Wh/day in CPU/JS execution alone. Add display brightness, networking, and fan activity, and you're easily into **double-digit Wh/day** of avoidable drain.
@@ -113,11 +113,11 @@ We don't pretend this is a climate panacea. **It's hygiene, not heroism.** But h
 
 ---
 
-## 🧪 Development
+## Development
 
 ```bash
-git clone https://github.com/JKneif/tabsleep.git
-cd tabsleep
+git clone https://github.com/JKneif/TabSleep.git
+cd TabSleep
 
 # Regenerate icons
 npm install --no-save sharp
@@ -138,7 +138,7 @@ Both should exit 0. If they don't, you broke something.
 
 ---
 
-## 🚧 What this is NOT (v0.1 honesty)
+## What this is NOT (v0.1 honesty)
 
 - ❌ **No per-user tunable thresholds** — they live in `lib/heuristic.js`. Edit and reload. Pull requests welcome.
 - ❌ **No land/grid selector** for CO2 — hardcoded to DE 2024 (380 g/kWh). If you want US/EU/world, that's a 10-line PR.
@@ -148,21 +148,21 @@ Both should exit 0. If they don't, you broke something.
 
 ---
 
-## 📜 License
+## License
 
 MIT.
 
 ---
 
-## ⭐ Why you should star this
+## Why you should star this
 
 - **It does one thing, in 4 files of actual logic.** Read the whole codebase in 10 minutes.
 - **It uses Chrome's own APIs, not a custom suspend system.** The Great Suspender was killed because they injected a custom script that ran in every page. TabSleep uses `chrome.tabs.discard()`. There is literally no extension-injected code in your tabs.
 - **It respects your data.** All numbers are stored in your browser. Open DevTools → Application → Local Storage and inspect `chrome-extension://...`. That's it.
 - **It's honest about its numbers.** The impact model is conservative and centralized in one file. If you disagree with the assumptions, change them and see the effect.
 
-⭐ **If this saved you from reloading a frozen Gmail tab one less time today, hit the star.**
+If this saved you from reloading a frozen Gmail tab one less time today, hit the star.
 
 ---
 
-<sub>Built with 🫶 on top of Chrome's own `chrome.tabs.discard()`. No external services. No tracking. No nonsense.</sub>
+<sub>Built with 🌙 on top of Chrome's own `chrome.tabs.discard()`. No external services. No tracking. No nonsense.</sub>
