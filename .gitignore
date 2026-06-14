@@ -1,0 +1,9 @@
+# Build artifacts
+node_modules/
+package.json
+package-lock.json
+.npm/
+
+# OS
+.DS_Store
+Thumbs.db

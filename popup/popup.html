@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TabSleep</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <h1>🌙 TabSleep</h1>
+  </header>
+
+  <main>
+    <section class="big" aria-live="polite">
+      <div class="big-number">
+        <span id="today-wh">—</span>
+        <span class="unit">Wh gespart</span>
+      </div>
+      <div class="big-sub">
+        ≈ <span id="today-co2">—</span> g CO2e
+      </div>
+      <div class="big-relate" id="relate"></div>
+    </section>
+
+    <section class="last7">
+      <span class="last7-label">Letzte 7 Tage</span>
+      <span class="last7-value" id="last7-wh">—</span>
+    </section>
+
+    <section class="sleeping">
+      <h2>Schlafende Tabs <span id="sleeping-count" class="count">0</span></h2>
+      <ul id="sleeping-list" class="list"></ul>
+      <p id="sleeping-empty" class="empty">Noch keine Tabs im Schlaf.</p>
+    </section>
+
+    <footer>
+      <span>Alle Daten lokal · chrome.storage.local</span>
+    </footer>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>
