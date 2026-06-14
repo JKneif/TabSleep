@@ -3,7 +3,7 @@
 // MV3 service workers can be killed at any time — all state must live in
 // chrome.storage or be recomputable on wake.
 
-importScripts("../lib/heuristic.js", "../lib/impact.js");
+importScripts("../lib/heuristic.js", "../lib/impact.js", "../lib/demo.js");
 
 const ALARM_NAME = "tabsleep-tick";
 const TICK_MINUTES = 1; // production
@@ -201,6 +201,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === "SEED_DEMO") {
+    globalThis.__td.seedDemoData()
+      .then((res) => sendResponse(res))
+      .catch((e) => sendResponse({ ok: false, error: String(e) }));
+    return true;
+  }
+
+  if (msg.type === "RESET_DATA") {
+    globalThis.__td.resetData()
+      .then((res) => sendResponse(res))
+      .catch((e) => sendResponse({ ok: false, error: String(e) }));
+    return true;
+  }
+
   return false;
 });
 
@@ -262,9 +276,10 @@ async function sleepAll() {
 
 async function getState() {
   const tabs = await chrome.tabs.query({ discarded: true });
-  const { discardLog = [], dailyTotals = {} } = await chrome.storage.local.get([
+  const { discardLog = [], dailyTotals = {}, isDemoData = false } = await chrome.storage.local.get([
     "discardLog",
     "dailyTotals",
+    "isDemoData",
   ]);
   const today = ymd(new Date());
   const todayTotals = dailyTotals[today] || { wh: 0, eur: 0 };
@@ -297,6 +312,7 @@ async function getState() {
     ok: true,
     today: { ...todayTotals, day: today },
     allTime: { wh: allTimeWh, eur: allTimeEur },
+    isDemoData,
     last7: {
       wh: last7Wh,
       eur: last7Eur,
