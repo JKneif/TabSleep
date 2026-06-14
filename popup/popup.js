@@ -5,34 +5,34 @@ const $ = (sel) => document.querySelector(sel);
 
 function fmt(n, digits = 2) {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
-  if (n === 0) return "0,00 €";
-  if (n < 0.01) return n.toExponential(1) + " €";
-  return n.toFixed(digits).replace(".", ",") + " €";
+  if (n === 0) return "€0.00";
+  // Group thousands with a thin space (e.g. "€1,234.56") for readability.
+  return n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
 }
 
 function fmtWh(n) {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   if (n === 0) return "0";
-  if (n < 0.01) return n.toExponential(1);
-  return n.toFixed(1);
-}
-
-function fmtMinutes(min) {
-  if (!min || min < 1) return "Weniger als 1 Minute";
-  if (min < 60) return `≈ ein 1W-LED für ${min} Minuten`;
-  const h = Math.round(min / 60);
-  return `≈ ein 1W-LED für ${h} Stunden`;
+  if (n < 1) return n.toFixed(2);
+  if (n < 100) return n.toFixed(1);
+  // Group thousands for larger Wh values.
+  return Math.round(n).toLocaleString("en-US");
 }
 
 function fmtSince(ts) {
-  if (!ts) return "schläft";
+  if (!ts) return "sleeping";
   const diff = Date.now() - ts;
   const m = Math.floor(diff / 60000);
-  if (m < 1) return "gerade eingeschlafen";
-  if (m < 60) return `seit ${m} min`;
+  if (m < 1) return "just slept";
+  if (m < 60) return `${m} min ago`;
   const h = Math.floor(m / 60);
   const rest = m % 60;
-  return `seit ${h}h ${rest}m`;
+  return `${h}h ${rest}m ago`;
 }
 
 function domainOf(url) {
@@ -50,27 +50,27 @@ async function init() {
   } catch (e) {
     $("#alltime-eur").textContent = "—";
     $("#alltime-wh").textContent = "—";
-    $("#relate").textContent = "Service worker nicht erreichbar.";
+    $("#relate").textContent = "Service worker not reachable.";
     return;
   }
   if (!state || !state.ok) {
     $("#alltime-eur").textContent = "—";
     $("#alltime-wh").textContent = "—";
-    $("#relate").textContent = (state && state.error) || "Kein State.";
+    $("#relate").textContent = (state && state.error) || "No state.";
     return;
   }
 
-  // v0.3: Big number is the rolling-30-days all-time total.
+  // v0.4: Big number is the rolling-30-days all-time total.
   $("#alltime-eur").textContent = fmt(state.allTime.eur, 2);
   $("#alltime-wh").textContent = fmtWh(state.allTime.wh);
 
   // Relatable comparison in EUR
   const eur = state.allTime.eur;
   if (eur > 0) {
-    const coffees = (eur / 3.5).toFixed(2).replace(".", ",");
-    $("#relate").textContent = `≈ ${coffees}× weniger für Latte ausgegeben`;
+    const coffees = (eur / 3.5).toFixed(2);
+    $("#relate").textContent = `≈ ${coffees}× less spent on lattes`;
   } else {
-    $("#relate").textContent = "Noch keine Ersparnis.";
+    $("#relate").textContent = "No savings yet.";
   }
 
   // Last 7
@@ -130,19 +130,19 @@ async function onSleepAll() {
   const btn = $("#sleep-all-btn");
   btn.disabled = true;
   const originalText = btn.textContent;
-  btn.textContent = "Schicke schlafen…";
+  btn.textContent = "Sleeping…";
   try {
     const res = await chrome.runtime.sendMessage({ type: "SLEEP_ALL" });
     if (res && res.ok) {
-      btn.textContent = `${res.discarded} geschickt`;
+      btn.textContent = `${res.discarded} sent`;
       setTimeout(() => { btn.textContent = originalText; init(); }, 1200);
     } else {
-      btn.textContent = "Fehler";
+      btn.textContent = "Error";
       setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1500);
     }
   } catch (e) {
     console.warn("sleep-all failed", e);
-    btn.textContent = "Fehler";
+    btn.textContent = "Error";
     setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1500);
   }
 }
