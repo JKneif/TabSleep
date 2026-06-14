@@ -48,30 +48,29 @@ async function init() {
   try {
     state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
   } catch (e) {
-    $("#today-eur").textContent = "—";
-    $("#today-wh").textContent = "—";
+    $("#alltime-eur").textContent = "—";
+    $("#alltime-wh").textContent = "—";
     $("#relate").textContent = "Service worker nicht erreichbar.";
     return;
   }
   if (!state || !state.ok) {
-    $("#today-eur").textContent = "—";
-    $("#today-wh").textContent = "—";
+    $("#alltime-eur").textContent = "—";
+    $("#alltime-wh").textContent = "—";
     $("#relate").textContent = (state && state.error) || "Kein State.";
     return;
   }
 
-  // Today: EUR is the big number, Wh is the subline
-  $("#today-eur").textContent = fmt(state.today.eur, 2);
-  $("#today-wh").textContent = fmtWh(state.today.wh);
+  // v0.3: Big number is the rolling-30-days all-time total.
+  $("#alltime-eur").textContent = fmt(state.allTime.eur, 2);
+  $("#alltime-wh").textContent = fmtWh(state.allTime.wh);
 
-  // Relatable — based on EUR now
-  const eur = state.today.eur;
+  // Relatable comparison in EUR
+  const eur = state.allTime.eur;
   if (eur > 0) {
-    // ~one coffee per day at €3.50 is a relatable goal.
     const coffees = (eur / 3.5).toFixed(2).replace(".", ",");
-    $("#relate").textContent = `Heute ${coffees}× weniger für Latte ausgegeben`;
+    $("#relate").textContent = `≈ ${coffees}× weniger für Latte ausgegeben`;
   } else {
-    $("#relate").textContent = "Noch keine Ersparnis heute.";
+    $("#relate").textContent = "Noch keine Ersparnis.";
   }
 
   // Last 7

@@ -268,6 +268,19 @@ async function getState() {
   ]);
   const today = ymd(new Date());
   const todayTotals = dailyTotals[today] || { wh: 0, eur: 0 };
+
+  // v0.3: all-time total = sum across all stored daily totals.
+  // dailyTotals is trimmed to the last 30 days, so the "all-time" view
+  // is a rolling-30-day total. Honest trade-off — keeps the storage
+  // bounded, and 30 days is plenty of recent history to make the
+  // number feel meaningful.
+  let allTimeWh = 0;
+  let allTimeEur = 0;
+  for (const k of Object.keys(dailyTotals)) {
+    allTimeWh += dailyTotals[k].wh || 0;
+    allTimeEur += dailyTotals[k].eur || 0;
+  }
+
   // Last 7 days
   const last7 = [];
   for (let i = 0; i < 7; i++) {
@@ -279,9 +292,11 @@ async function getState() {
   }
   const last7Eur = last7.reduce((s, x) => s + x.eur, 0);
   const last7Wh = last7.reduce((s, x) => s + x.wh, 0);
+
   return {
     ok: true,
     today: { ...todayTotals, day: today },
+    allTime: { wh: allTimeWh, eur: allTimeEur },
     last7: {
       wh: last7Wh,
       eur: last7Eur,
